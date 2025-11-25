@@ -1,21 +1,775 @@
 <!DOCTYPE html>
-<html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Document</title>
-  </head>
-  <body>
-    <div>
-      <div>
-        <h1 className="">Title 1</h1>
-        <p>
-          Lorem ipsum dolor sit amet, consectetur adipisicing elit. Earum
-          molestias, expedita voluptatem voluptas reiciendis dolore ratione sit
-          nesciunt ad accusantium dolorem harum repudiandae, aliquid quos totam,
-          porro tempora. Quis, deleniti?
-        </p>
-      </div>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Apple Device Simulator</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Font Awesome for Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap');
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f3f4f6;
+            background-image: radial-gradient(#e5e7eb 1px, transparent 1px);
+            background-size: 20px 20px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            width: 100vw;
+            margin: 0;
+            overflow: hidden; /* ห้าม Scroll ที่ Body เด็ดขาด */
+        }
+
+        /* Simulator Container for Scaling */
+        .simulator-wrapper {
+            transform-origin: center center;
+            transition: transform 0.4s cubic-bezier(0.25, 1, 0.5, 1);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        /* Dynamic Phone Frame Styling */
+        .device-frame {
+            /* Variables set by JS */
+            width: var(--device-width, 393px);
+            height: var(--device-height, 852px);
+            border-radius: var(--device-radius, 55px);
+            
+            background-color: #1a1a1a;
+            box-shadow: 
+                0 0 0 4px #343434,
+                0 0 0 5px #1a1a1a,
+                20px 20px 60px rgba(0,0,0,0.4);
+            position: relative;
+            overflow: hidden;
+            border: var(--device-border, 8px) solid #000;
+            transition: all 0.5s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+            flex-shrink: 0;
+        }
+
+        /* Screen Styling */
+        .screen {
+            width: 100%;
+            height: 100%;
+            background-image: url('https://images.unsplash.com/photo-1696538766861-68939c3666b3?q=80&w=1000&auto=format&fit=crop'); /* iPhone 15 Wall */
+            background-size: cover;
+            background-position: center;
+            border-radius: calc(var(--device-radius, 55px) - 8px); 
+            position: relative;
+            overflow: hidden;
+            color: white;
+            transition: border-radius 0.5s ease;
+        }
+
+        /* Bezel Mode */
+        .has-bezel .screen {
+            height: calc(100% - 140px);
+            margin-top: 70px;
+            border-radius: 2px;
+            border: 2px solid #333;
+        }
+        
+        .home-button {
+            position: absolute;
+            bottom: 15px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            border: 2px solid #222;
+            background: linear-gradient(135deg, #111, #000);
+            z-index: 60;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.3s;
+            box-shadow: inset 0 0 5px rgba(255,255,255,0.1);
+        }
+        
+        .has-bezel .home-button {
+            opacity: 1;
+            pointer-events: auto;
+            cursor: pointer;
+        }
+
+        /* Notch */
+        .notch {
+            position: absolute;
+            top: 0;
+            left: 50%;
+            transform: translateX(-50%);
+            background-color: #000;
+            z-index: 50;
+            transition: all 0.5s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+            
+            width: var(--notch-width, 126px);
+            height: var(--notch-height, 37px);
+            border-bottom-left-radius: var(--notch-radius, 20px);
+            border-bottom-right-radius: var(--notch-radius, 20px);
+            border-radius: var(--notch-full-radius, 0);
+            top: var(--notch-top, 11px);
+        }
+
+        .no-notch .notch { display: none; }
+
+        /* --- UPDATED ANIMATIONS (iOS Style) --- */
+        
+        /* Opening: Zoom in from center with spring */
+        .app-launch { 
+            animation: appLaunch 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards; 
+            transform-origin: center center;
+        }
+
+        /* Closing: "Swipe Up" effect - Shrink and move UP slightly, then fade */
+        .app-close { 
+            animation: appClose 0.5s cubic-bezier(0.32, 0.72, 0, 1) forwards; 
+            transform-origin: center bottom; /* Anchor at bottom to feel like lifting */
+        }
+
+        .fade-out { animation: fadeOut 0.5s ease-in-out forwards; }
+
+        @keyframes appLaunch { 
+            0% { transform: scale(0.8); opacity: 0; border-radius: 40px; } 
+            100% { transform: scale(1); opacity: 1; border-radius: 0; } 
+        }
+        
+        @keyframes appClose { 
+            0% { transform: translateY(0) scale(1); opacity: 1; border-radius: 0; } 
+            100% { transform: translateY(-30px) scale(0.6); opacity: 0; border-radius: 60px; } 
+        }
+
+        @keyframes fadeOut { from { opacity: 1; } to { opacity: 0; } }
+
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+        .app-icon:active { filter: brightness(0.7); transform: scale(0.92); }
+        .app-icon { transition: all 0.15s ease; }
+
+        /* Model Selector List Item */
+        .model-item:active { background-color: #e5e7eb; }
+
+    </style>
+</head>
+<body>
+
+    <div class="simulator-wrapper" id="simulator-wrapper">
+        <div class="device-frame" id="device-frame">
+            
+            <!-- Side Buttons -->
+            <div class="absolute -left-[3px] top-[100px] w-[3px] h-[30px] bg-gray-700 rounded-l-md button-side"></div>
+            <div class="absolute -left-[3px] top-[150px] w-[3px] h-[60px] bg-gray-700 rounded-l-md button-side"></div>
+            <div class="absolute -left-[3px] top-[220px] w-[3px] h-[60px] bg-gray-700 rounded-l-md button-side"></div>
+            <div class="absolute -right-[3px] top-[180px] w-[3px] h-[90px] bg-gray-700 rounded-r-md button-side"></div>
+
+            <!-- Physical Home Button -->
+            <div class="home-button" onclick="goHome()"></div>
+
+            <div class="screen" id="main-screen">
+                <!-- Status Bar -->
+                <div class="absolute top-2 w-full px-7 flex justify-between items-center text-[13px] font-semibold z-40 text-white select-none status-bar tracking-wide">
+                    <span id="clock">12:00</span>
+                    <div class="flex gap-1.5 items-center">
+                        <i class="fas fa-signal"></i>
+                        <i class="fas fa-wifi"></i>
+                        <i class="fas fa-battery-full text-[16px]"></i>
+                    </div>
+                </div>
+
+                <!-- Notch -->
+                <div class="notch"></div>
+
+                <!-- Boot Logo -->
+                <div id="boot-screen" class="absolute inset-0 bg-black flex items-center justify-center z-50 rounded-inherit">
+                    <i class="fab fa-apple text-white text-7xl"></i>
+                </div>
+
+                <!-- HOME SCREEN -->
+                <div id="home-screen" class="absolute inset-0 pt-16 px-5 pb-8 flex flex-col justify-between transition-all duration-300">
+                    <!-- App Grid -->
+                    <div class="grid grid-cols-4 gap-y-7 gap-x-4 content-start app-grid">
+                        
+                        <!-- 1. Messages -->
+                        <div class="flex flex-col items-center gap-1.5 app-icon cursor-pointer" onclick="openApp('messages')">
+                            <div class="w-[60px] h-[60px] bg-green-500 rounded-[14px] flex items-center justify-center text-3xl shadow-sm">
+                                <i class="fas fa-comment text-white"></i>
+                            </div>
+                            <span class="text-[11px] text-white font-medium drop-shadow-md tracking-tight">ข้อความ</span>
+                        </div>
+                        
+                        <!-- 2. Photos -->
+                        <div class="flex flex-col items-center gap-1.5 app-icon cursor-pointer" onclick="openApp('photos')">
+                            <div class="w-[60px] h-[60px] bg-white rounded-[14px] flex items-center justify-center text-3xl shadow-sm relative overflow-hidden">
+                                <div class="absolute inset-0 bg-gradient-to-tr from-pink-500 via-red-500 to-yellow-400 opacity-20"></div>
+                                <div class="w-2 h-2 rounded-full bg-pink-500 absolute top-3 left-3"></div>
+                                <div class="w-2 h-2 rounded-full bg-orange-400 absolute top-3 right-5"></div>
+                                <div class="w-2 h-2 rounded-full bg-blue-400 absolute bottom-4 left-5"></div>
+                                <div class="w-8 h-2 rounded-full bg-green-400 absolute bottom-3 right-3 rotate-12"></div>
+                            </div>
+                            <span class="text-[11px] text-white font-medium drop-shadow-md tracking-tight">รูปภาพ</span>
+                        </div>
+
+                        <!-- 3. Camera -->
+                        <div class="flex flex-col items-center gap-1.5 app-icon cursor-pointer" onclick="openApp('camera')">
+                            <div class="w-[60px] h-[60px] bg-[#d1d5db] rounded-[14px] flex items-center justify-center text-3xl shadow-sm">
+                                <i class="fas fa-camera text-gray-800"></i>
+                            </div>
+                            <span class="text-[11px] text-white font-medium drop-shadow-md tracking-tight">กล้อง</span>
+                        </div>
+
+                        <!-- 4. Weather -->
+                        <div class="flex flex-col items-center gap-1.5 app-icon cursor-pointer" onclick="openApp('weather')">
+                            <div class="w-[60px] h-[60px] bg-[#3b82f6] rounded-[14px] flex items-center justify-center text-3xl shadow-sm">
+                                <i class="fas fa-cloud-sun text-yellow-300"></i>
+                            </div>
+                            <span class="text-[11px] text-white font-medium drop-shadow-md tracking-tight">สภาพอากาศ</span>
+                        </div>
+
+                        <!-- 5. Notes -->
+                        <div class="flex flex-col items-center gap-1.5 app-icon cursor-pointer" onclick="openApp('notes')">
+                            <div class="w-[60px] h-[60px] bg-yellow-400 rounded-[14px] flex items-center justify-center text-3xl shadow-sm">
+                                <i class="fas fa-sticky-note text-white"></i>
+                            </div>
+                            <span class="text-[11px] text-white font-medium drop-shadow-md tracking-tight">โน้ต</span>
+                        </div>
+
+                        <!-- 6. Settings -->
+                        <div class="flex flex-col items-center gap-1.5 app-icon cursor-pointer" onclick="openApp('settings')">
+                            <div class="w-[60px] h-[60px] bg-[#6b7280] rounded-[14px] flex items-center justify-center text-3xl shadow-sm">
+                                <i class="fas fa-cog text-gray-200 animate-spin-slow" style="animation-duration: 10s;"></i>
+                            </div>
+                            <span class="text-[11px] text-white font-medium drop-shadow-md tracking-tight">ตั้งค่า</span>
+                        </div>
+
+                        <!-- 7. Calculator -->
+                        <div class="flex flex-col items-center gap-1.5 app-icon cursor-pointer" onclick="openApp('calculator')">
+                            <div class="w-[60px] h-[60px] bg-gray-900 border border-gray-700 rounded-[14px] flex items-center justify-center text-3xl shadow-sm">
+                                <i class="fas fa-calculator text-orange-500"></i>
+                            </div>
+                            <span class="text-[11px] text-white font-medium drop-shadow-md tracking-tight">คิดเลข</span>
+                        </div>
+
+                        <!-- 8. NEW APP: MODEL SWITCHER -->
+                        <div class="flex flex-col items-center gap-1.5 app-icon cursor-pointer" onclick="openApp('models')">
+                            <div class="w-[60px] h-[60px] bg-gradient-to-br from-indigo-500 to-purple-600 rounded-[14px] flex items-center justify-center text-3xl shadow-sm border border-white/20">
+                                <i class="fas fa-mobile-alt text-white"></i>
+                            </div>
+                            <span class="text-[11px] text-white font-medium drop-shadow-md tracking-tight">เลือกรุ่น</span>
+                        </div>
+                        
+                         <!-- iPad Extras (Hidden on phone) -->
+                         <div class="flex flex-col items-center gap-1.5 app-icon cursor-pointer ipad-only hidden">
+                            <div class="w-[60px] h-[60px] bg-purple-500 rounded-[14px] flex items-center justify-center text-3xl shadow-sm">
+                                <i class="fas fa-podcast text-white"></i>
+                            </div>
+                            <span class="text-[11px] text-white font-medium drop-shadow-md">Podcasts</span>
+                        </div>
+                    </div>
+
+                    <!-- Dock -->
+                    <div class="bg-white/20 backdrop-blur-xl rounded-[32px] p-3.5 mb-3 mx-1 dock-container border-t border-white/10">
+                        <div class="grid grid-cols-4 gap-4 dock-grid">
+                            <div class="w-[60px] h-[60px] bg-[#4ade80] rounded-[14px] flex items-center justify-center text-3xl shadow-lg cursor-pointer transition-transform active:scale-90" onclick="alert('โทรออกไม่ได้จริงนะครับ 😅')">
+                                <i class="fas fa-phone text-white"></i>
+                            </div>
+                            <div class="w-[60px] h-[60px] bg-[#3b82f6] rounded-[14px] flex items-center justify-center text-3xl shadow-lg cursor-pointer transition-transform active:scale-90" onclick="openApp('safari')">
+                                <i class="fas fa-compass text-white"></i>
+                            </div>
+                            <div class="w-[60px] h-[60px] bg-gray-700 rounded-[14px] flex items-center justify-center text-3xl shadow-lg cursor-pointer transition-transform active:scale-90" onclick="openApp('mail')">
+                                <i class="fas fa-envelope text-white"></i>
+                            </div>
+                            <div class="w-[60px] h-[60px] bg-[#ef4444] rounded-[14px] flex items-center justify-center text-3xl shadow-lg cursor-pointer transition-transform active:scale-90" onclick="openApp('music')">
+                                <i class="fas fa-music text-white"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- APP LAYERS -->
+                <div id="active-app-container" class="absolute inset-0 bg-white z-30 hidden flex-col">
+                    
+                    <!-- 0. MODELS APP (The New Switcher) -->
+                    <div id="app-models" class="w-full h-full bg-[#f2f2f7] text-black hidden flex-col pt-12">
+                        <div class="px-5 pb-4 bg-[#f2f2f7] sticky top-0 z-10">
+                            <h1 class="text-3xl font-bold">เลือกรุ่น</h1>
+                            <p class="text-gray-500 text-sm mt-1">เปลี่ยนอุปกรณ์ Simulator</p>
+                        </div>
+                        <div class="flex-1 overflow-y-auto no-scrollbar px-4 pb-20">
+                            
+                            <!-- Section: Modern -->
+                            <div class="mb-6">
+                                <h2 class="text-xs text-gray-500 uppercase font-semibold ml-3 mb-2">Modern iPhone</h2>
+                                <div class="bg-white rounded-xl overflow-hidden shadow-sm" id="list-modern">
+                                    <!-- Populated by JS -->
+                                </div>
+                            </div>
+
+                            <!-- Section: Classic -->
+                            <div class="mb-6">
+                                <h2 class="text-xs text-gray-500 uppercase font-semibold ml-3 mb-2">Classic Home Button</h2>
+                                <div class="bg-white rounded-xl overflow-hidden shadow-sm" id="list-classic">
+                                    <!-- Populated by JS -->
+                                </div>
+                            </div>
+
+                            <!-- Section: iPad -->
+                            <div class="mb-6">
+                                <h2 class="text-xs text-gray-500 uppercase font-semibold ml-3 mb-2">iPadOS</h2>
+                                <div class="bg-white rounded-xl overflow-hidden shadow-sm" id="list-ipad">
+                                    <!-- Populated by JS -->
+                                </div>
+                            </div>
+
+                        </div>
+                    </div>
+
+                    <!-- 1. SETTINGS APP -->
+                    <div id="app-settings" class="w-full h-full bg-[#f2f2f7] text-black hidden flex-col pt-12">
+                        <div class="px-5 pb-4 bg-[#f2f2f7] sticky top-0 z-10 border-b border-gray-300/50">
+                            <h1 class="text-3xl font-bold">การตั้งค่า</h1>
+                        </div>
+                        <div class="p-4 space-y-5 overflow-y-auto no-scrollbar pb-20">
+                            <div class="bg-white rounded-xl p-3 flex items-center gap-4 shadow-sm">
+                                <div class="w-14 h-14 rounded-full bg-gray-300 overflow-hidden flex items-center justify-center text-xl font-bold text-gray-500 relative">
+                                    <img src="https://api.dicebear.com/7.x/avataaars/svg?seed=Felix" class="absolute inset-0">
+                                </div>
+                                <div class="flex-1">
+                                    <h3 class="font-semibold text-lg">My iPhone</h3>
+                                    <p class="text-sm text-gray-500">Apple ID, iCloud, Media</p>
+                                </div>
+                                <i class="fas fa-chevron-right text-gray-300"></i>
+                            </div>
+                            
+                            <div class="bg-white rounded-xl overflow-hidden shadow-sm">
+                                <div class="p-3.5 flex justify-between items-center border-b border-gray-100 active:bg-gray-50">
+                                    <div class="flex items-center gap-3">
+                                        <div class="w-7 h-7 bg-orange-500 rounded flex items-center justify-center text-white"><i class="fas fa-plane text-sm"></i></div>
+                                        <span class="font-medium">โหมดเครื่องบิน</span>
+                                    </div>
+                                    <div class="w-11 h-6 bg-gray-200 rounded-full relative transition-colors"><div class="absolute left-0.5 top-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform"></div></div>
+                                </div>
+                                <div class="p-3.5 flex justify-between items-center border-b border-gray-100 active:bg-gray-50">
+                                    <div class="flex items-center gap-3">
+                                        <div class="w-7 h-7 bg-blue-500 rounded flex items-center justify-center text-white"><i class="fas fa-wifi text-sm"></i></div>
+                                        <span class="font-medium">Wi-Fi</span>
+                                    </div>
+                                    <div class="flex items-center gap-2 text-gray-400">
+                                        <span class="text-sm">Not Connected</span>
+                                        <i class="fas fa-chevron-right text-xs"></i>
+                                    </div>
+                                </div>
+                                 <div class="p-3.5 flex justify-between items-center active:bg-gray-50">
+                                    <div class="flex items-center gap-3">
+                                        <div class="w-7 h-7 bg-blue-500 rounded flex items-center justify-center text-white"><i class="fab fa-bluetooth-b text-sm"></i></div>
+                                        <span class="font-medium">Bluetooth</span>
+                                    </div>
+                                    <div class="flex items-center gap-2 text-gray-400">
+                                        <span class="text-sm">On</span>
+                                        <i class="fas fa-chevron-right text-xs"></i>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 2. PHOTOS APP -->
+                    <div id="app-photos" class="w-full h-full bg-white text-black hidden flex-col pt-12">
+                         <div class="px-4 pb-2 border-b border-gray-100 sticky top-0 bg-white/95 backdrop-blur z-10">
+                            <h1 class="text-2xl font-bold">คลังรูปภาพ</h1>
+                        </div>
+                        <div class="grid grid-cols-3 gap-0.5 overflow-y-auto no-scrollbar pb-20 content-start">
+                             <!-- Generate 12 dummy photos -->
+                             <div class="aspect-square bg-gray-100 overflow-hidden"><img src="https://picsum.photos/300?random=1" class="w-full h-full object-cover"></div>
+                             <div class="aspect-square bg-gray-100 overflow-hidden"><img src="https://picsum.photos/300?random=2" class="w-full h-full object-cover"></div>
+                             <div class="aspect-square bg-gray-100 overflow-hidden"><img src="https://picsum.photos/300?random=3" class="w-full h-full object-cover"></div>
+                             <div class="aspect-square bg-gray-100 overflow-hidden"><img src="https://picsum.photos/300?random=4" class="w-full h-full object-cover"></div>
+                             <div class="aspect-square bg-gray-100 overflow-hidden"><img src="https://picsum.photos/300?random=5" class="w-full h-full object-cover"></div>
+                             <div class="aspect-square bg-gray-100 overflow-hidden"><img src="https://picsum.photos/300?random=6" class="w-full h-full object-cover"></div>
+                             <div class="aspect-square bg-gray-100 overflow-hidden"><img src="https://picsum.photos/300?random=7" class="w-full h-full object-cover"></div>
+                             <div class="aspect-square bg-gray-100 overflow-hidden"><img src="https://picsum.photos/300?random=8" class="w-full h-full object-cover"></div>
+                             <div class="aspect-square bg-gray-100 overflow-hidden"><img src="https://picsum.photos/300?random=9" class="w-full h-full object-cover"></div>
+                             <div class="aspect-square bg-gray-100 overflow-hidden"><img src="https://picsum.photos/300?random=10" class="w-full h-full object-cover"></div>
+                             <div class="aspect-square bg-gray-100 overflow-hidden"><img src="https://picsum.photos/300?random=11" class="w-full h-full object-cover"></div>
+                             <div class="aspect-square bg-gray-100 overflow-hidden"><img src="https://picsum.photos/300?random=12" class="w-full h-full object-cover"></div>
+                             <div class="aspect-square bg-gray-100 overflow-hidden"><img src="https://picsum.photos/300?random=13" class="w-full h-full object-cover"></div>
+                             <div class="aspect-square bg-gray-100 overflow-hidden"><img src="https://picsum.photos/300?random=14" class="w-full h-full object-cover"></div>
+                             <div class="aspect-square bg-gray-100 overflow-hidden"><img src="https://picsum.photos/300?random=15" class="w-full h-full object-cover"></div>
+                        </div>
+                    </div>
+
+                    <!-- 3. CALCULATOR APP -->
+                    <div id="app-calculator" class="w-full h-full bg-black text-white hidden flex-col pt-12 pb-10 px-5 justify-end">
+                        <div class="text-right text-7xl font-light mb-5 tracking-tight">0</div>
+                        <div class="grid grid-cols-4 gap-3.5">
+                            <button class="aspect-square rounded-full bg-[#a5a5a5] text-black text-2xl font-medium active:bg-white">AC</button>
+                            <button class="aspect-square rounded-full bg-[#a5a5a5] text-black text-2xl font-medium active:bg-white">+/-</button>
+                            <button class="aspect-square rounded-full bg-[#a5a5a5] text-black text-2xl font-medium active:bg-white">%</button>
+                            <button class="aspect-square rounded-full bg-[#ff9f0a] text-white text-3xl font-medium active:bg-[#ffbf5c] pb-1">÷</button>
+                            
+                            <button class="aspect-square rounded-full bg-[#333333] text-3xl font-medium active:bg-[#737373]">7</button>
+                            <button class="aspect-square rounded-full bg-[#333333] text-3xl font-medium active:bg-[#737373]">8</button>
+                            <button class="aspect-square rounded-full bg-[#333333] text-3xl font-medium active:bg-[#737373]">9</button>
+                            <button class="aspect-square rounded-full bg-[#ff9f0a] text-white text-3xl font-medium active:bg-[#ffbf5c] pb-1">×</button>
+                            
+                            <button class="aspect-square rounded-full bg-[#333333] text-3xl font-medium active:bg-[#737373]">4</button>
+                            <button class="aspect-square rounded-full bg-[#333333] text-3xl font-medium active:bg-[#737373]">5</button>
+                            <button class="aspect-square rounded-full bg-[#333333] text-3xl font-medium active:bg-[#737373]">6</button>
+                            <button class="aspect-square rounded-full bg-[#ff9f0a] text-white text-3xl font-medium active:bg-[#ffbf5c] pb-1">-</button>
+                            
+                            <button class="aspect-square rounded-full bg-[#333333] text-3xl font-medium active:bg-[#737373]">1</button>
+                            <button class="aspect-square rounded-full bg-[#333333] text-3xl font-medium active:bg-[#737373]">2</button>
+                            <button class="aspect-square rounded-full bg-[#333333] text-3xl font-medium active:bg-[#737373]">3</button>
+                            <button class="aspect-square rounded-full bg-[#ff9f0a] text-white text-3xl font-medium active:bg-[#ffbf5c] pb-1">+</button>
+                            
+                            <button class="col-span-2 h-full rounded-full bg-[#333333] text-3xl font-medium text-left pl-8 active:bg-[#737373]">0</button>
+                            <button class="aspect-square rounded-full bg-[#333333] text-3xl font-medium active:bg-[#737373]">.</button>
+                            <button class="aspect-square rounded-full bg-[#ff9f0a] text-white text-3xl font-medium active:bg-[#ffbf5c]">=</button>
+                        </div>
+                    </div>
+
+                    <!-- 4. MESSAGES APP -->
+                    <div id="app-messages" class="w-full h-full bg-white text-black hidden flex-col pt-12">
+                        <div class="px-5 pb-3 flex justify-between items-center sticky top-0 bg-white/95 backdrop-blur z-10">
+                            <span class="text-blue-500 text-base">แก้ไข</span>
+                            <h1 class="text-xl font-bold">ข้อความ</h1>
+                            <i class="far fa-edit text-blue-500 text-lg"></i>
+                        </div>
+                        <div class="flex-1 overflow-y-auto no-scrollbar pb-8 px-2">
+                             <h2 class="text-2xl font-bold ml-3 mt-2 mb-4">Pinned</h2>
+                             <div class="flex justify-center gap-6 mb-6">
+                                 <div class="flex flex-col items-center">
+                                     <div class="w-20 h-20 rounded-full bg-gray-200 overflow-hidden"><img src="https://api.dicebear.com/7.x/avataaars/svg?seed=Mom" ></div>
+                                     <span class="text-xs mt-1 text-gray-500">แม่ ❤️</span>
+                                 </div>
+                                 <div class="flex flex-col items-center">
+                                     <div class="w-20 h-20 rounded-full bg-gray-200 overflow-hidden"><img src="https://api.dicebear.com/7.x/avataaars/svg?seed=Dad" ></div>
+                                     <span class="text-xs mt-1 text-gray-500">พ่อ</span>
+                                 </div>
+                             </div>
+
+                            <div class="px-2">
+                                <div class="py-3 flex gap-3 border-b border-gray-100 hover:bg-gray-50 rounded-xl px-2 transition-colors cursor-pointer">
+                                    <div class="w-12 h-12 rounded-full bg-blue-500 flex items-center justify-center text-white font-bold text-lg">K</div>
+                                    <div class="flex-1 min-w-0 flex flex-col justify-center">
+                                        <div class="flex justify-between items-baseline"><h3 class="font-semibold truncate text-base">Kevin</h3><span class="text-xs text-gray-400">12:05</span></div>
+                                        <p class="text-gray-500 text-sm truncate">เฮ้ย เย็นนี้ว่างป่ะ ไปตีแบดกัน</p>
+                                    </div>
+                                    <div class="w-2 h-2 rounded-full bg-blue-500 self-center"></div>
+                                </div>
+                                <div class="py-3 flex gap-3 border-b border-gray-100 hover:bg-gray-50 rounded-xl px-2 transition-colors cursor-pointer">
+                                    <div class="w-12 h-12 rounded-full bg-green-500 flex items-center justify-center text-white font-bold text-lg"><i class="fas fa-university"></i></div>
+                                    <div class="flex-1 min-w-0 flex flex-col justify-center">
+                                        <div class="flex justify-between items-baseline"><h3 class="font-semibold truncate text-base">KBank</h3><span class="text-xs text-gray-400">เมื่อวาน</span></div>
+                                        <p class="text-gray-500 text-sm truncate">เงินเข้าบัญชี xxx-xxx-9999 จำนวน 50,000.00 บาท</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 5. CAMERA APP -->
+                    <div id="app-camera" class="w-full h-full bg-black relative hidden flex-col">
+                         <div class="flex-1 bg-[#1c1c1e] relative my-16 mx-0 rounded-3xl overflow-hidden flex items-center justify-center">
+                             <!-- Fake Viewfinder -->
+                             <img src="https://images.unsplash.com/photo-1542291026-7eec264c27ff?q=80&w=1000&auto=format&fit=crop" class="absolute inset-0 w-full h-full object-cover opacity-80 blur-[1px]">
+                             <div class="w-16 h-16 border border-yellow-400/50 absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2"></div>
+                             <p class="absolute bottom-4 text-yellow-400 bg-black/50 px-2 rounded text-xs font-mono">AE/AF LOCK</p>
+                         </div>
+                         <div class="absolute bottom-0 w-full h-32 bg-black/80 backdrop-blur-md flex items-center justify-center pb-8 gap-12 z-20">
+                             <div class="w-12 h-12 bg-gray-800 rounded-full overflow-hidden border border-white/20"><img src="https://picsum.photos/100" class="opacity-70"></div>
+                             <div class="w-20 h-20 rounded-full border-4 border-white flex items-center justify-center cursor-pointer active:scale-95 transition-transform"><div class="w-[70px] h-[70px] bg-white rounded-full"></div></div>
+                             <div class="w-12 h-12 bg-gray-800/50 rounded-full flex items-center justify-center text-white"><i class="fas fa-sync-alt"></i></div>
+                         </div>
+                         <div class="absolute top-12 w-full flex justify-between px-6 text-white z-20">
+                             <i class="fas fa-bolt"></i>
+                             <i class="fas fa-chevron-up"></i>
+                             <i class="fas fa-circle-notch"></i>
+                         </div>
+                    </div>
+
+                    <!-- 6. WEATHER APP -->
+                    <div id="app-weather" class="w-full h-full bg-gradient-to-b from-[#4faaff] to-[#0066cc] text-white hidden flex-col pt-14 px-6">
+                        <div class="flex flex-col items-center mt-6 mb-8 text-center shadow-text">
+                            <h2 class="text-3xl font-normal drop-shadow-md">Bangkok</h2>
+                            <h1 class="text-8xl font-thin ml-4 drop-shadow-lg">34°</h1>
+                            <p class="text-xl font-medium opacity-90">Mostly Sunny</p>
+                            <div class="flex gap-3 text-base mt-1 opacity-80"><span>H:36°</span><span>L:28°</span></div>
+                        </div>
+                        <div class="bg-blue-500/30 rounded-2xl p-4 backdrop-blur-md border border-white/10">
+                            <div class="flex justify-between text-sm border-b border-white/20 pb-2 mb-2">
+                                <span>Weather Forecast</span>
+                            </div>
+                            <div class="flex justify-between px-2">
+                                <div class="flex flex-col items-center gap-1"><span class="text-xs">Now</span><i class="fas fa-sun text-yellow-300"></i><span>34°</span></div>
+                                <div class="flex flex-col items-center gap-1"><span class="text-xs">14</span><i class="fas fa-cloud-sun"></i><span>35°</span></div>
+                                <div class="flex flex-col items-center gap-1"><span class="text-xs">15</span><i class="fas fa-cloud"></i><span>33°</span></div>
+                                <div class="flex flex-col items-center gap-1"><span class="text-xs">16</span><i class="fas fa-cloud-rain"></i><span>30°</span></div>
+                                <div class="flex flex-col items-center gap-1"><span class="text-xs">17</span><i class="fas fa-bolt"></i><span>29°</span></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 7. NOTES APP -->
+                    <div id="app-notes" class="w-full h-full bg-[#f2f2f7] text-black hidden flex-col pt-12">
+                        <div class="px-5 pb-2 sticky top-0 bg-[#f2f2f7] z-10">
+                            <h1 class="text-3xl font-bold mb-2">โน้ต</h1>
+                            <div class="bg-gray-200 rounded-xl px-3 py-2 flex items-center gap-2 text-gray-500"><i class="fas fa-search"></i><span class="text-base">ค้นหา</span></div>
+                        </div>
+                        <div class="mt-4 px-4 space-y-3">
+                            <div class="bg-white p-4 rounded-xl shadow-sm">
+                                <h3 class="font-bold text-lg">โปรเจกต์ Simulator</h3>
+                                <p class="text-gray-400 text-sm mt-1">1. ทำให้ Responsive 100%<br>2. ย้ายตัวเลือกไปไว้ในแอป<br>3. ปรับ UI ให้สวยขึ้น</p>
+                                <p class="text-xs text-gray-300 mt-2">11:30 AM</p>
+                            </div>
+                            <div class="bg-white p-4 rounded-xl shadow-sm">
+                                <h3 class="font-bold text-lg">รายการซื้อของ</h3>
+                                <p class="text-gray-400 text-sm mt-1">ไข่ไก่, นมจืด, กาแฟ, ขนมปัง</p>
+                                <p class="text-xs text-gray-300 mt-2">Yesterday</p>
+                            </div>
+                        </div>
+                    </div>
+
+                     <!-- Fallback -->
+                     <div id="app-generic" class="w-full h-full bg-white text-black hidden flex-col items-center justify-center">
+                        <i class="fas fa-tools text-6xl text-gray-300 mb-4"></i>
+                        <h2 class="text-xl font-bold text-gray-500">Under Construction</h2>
+                    </div>
+                </div>
+
+                <!-- HOME INDICATOR -->
+                <div id="home-bar" class="absolute bottom-2 left-1/2 transform -translate-x-1/2 w-[130px] h-[5px] bg-white rounded-full z-[60] cursor-pointer active:bg-gray-300 transition-colors shadow-sm"></div>
+            </div>
+        </div>
     </div>
-  </body>
+
+    <script>
+        // --- 1. DEVICE CONFIGURATIONS ---
+        const devices = [
+            { id: 'iphone14pro', name: 'iPhone 14/15/16 Pro', group: 'modern', width: 393, height: 852, radius: 55, notchW: 126, notchH: 37, notchR: 20, notchFullR: 20, notchTop: 11, hasBezel: false },
+            { id: 'iphone17promax', name: 'iPhone 17 Pro Max', group: 'modern', width: 430, height: 932, radius: 60, notchW: 120, notchH: 35, notchR: 20, notchFullR: 20, notchTop: 11, hasBezel: false },
+            { id: 'iphone13', name: 'iPhone 13 / 14', group: 'modern', width: 390, height: 844, radius: 48, notchW: 160, notchH: 30, notchR: 15, notchFullR: 0, notchTop: 0, hasBezel: false },
+            { id: 'iphone13mini', name: 'iPhone 13 Mini', group: 'modern', width: 360, height: 780, radius: 44, notchW: 150, notchH: 30, notchR: 15, notchFullR: 0, notchTop: 0, hasBezel: false },
+            // ปรับขนาด Height ของรุ่นเก่าให้รวมขอบบน-ล่าง เพื่อให้ดูสมจริงขึ้น
+            { id: 'iphone8', name: 'iPhone SE / 8', group: 'classic', width: 375, height: 805, radius: 35, notchW: 0, notchH: 0, notchR: 0, notchFullR: 0, notchTop: 0, hasBezel: true },
+            { id: 'iphone4', name: 'iPhone 4 / 4S', group: 'classic', width: 320, height: 620, radius: 8, notchW: 0, notchH: 0, notchR: 0, notchFullR: 0, notchTop: 0, hasBezel: true },
+            { id: 'ipadmini', name: 'iPad Mini', group: 'ipad', width: 744, height: 1133, radius: 25, notchW: 0, notchH: 0, notchR: 0, notchFullR: 0, notchTop: 0, hasBezel: false },
+            { id: 'ipadair', name: 'iPad Air / Pro 11"', group: 'ipad', width: 820, height: 1180, radius: 25, notchW: 0, notchH: 0, notchR: 0, notchFullR: 0, notchTop: 0, hasBezel: false },
+            { id: 'ipadpro', name: 'iPad Pro 12.9"', group: 'ipad', width: 1024, height: 1366, radius: 30, notchW: 0, notchH: 0, notchR: 0, notchFullR: 0, notchTop: 0, hasBezel: false }
+        ];
+
+        const wrapper = document.getElementById('simulator-wrapper');
+        const frame = document.getElementById('device-frame');
+        const homeBar = document.getElementById('home-bar');
+        
+        let currentModelId = 'iphone14pro'; // Default
+
+        // --- 2. BUILD MODEL SELECTOR APP ---
+        function initModelApp() {
+            const listModern = document.getElementById('list-modern');
+            const listClassic = document.getElementById('list-classic');
+            const listiPad = document.getElementById('list-ipad');
+
+            devices.forEach(d => {
+                const el = document.createElement('div');
+                el.className = 'p-3.5 flex justify-between items-center border-b border-gray-100 cursor-pointer model-item transition-colors';
+                el.innerHTML = `
+                    <span class="font-medium text-base">${d.name}</span>
+                    ${currentModelId === d.id ? '<i class="fas fa-check text-blue-500"></i>' : ''}
+                `;
+                el.onclick = () => {
+                    selectDevice(d.id);
+                    // Update checkmarks visually
+                    document.querySelectorAll('.model-item i').forEach(i => i.remove());
+                    el.innerHTML += '<i class="fas fa-check text-blue-500"></i>';
+                };
+
+                if(d.group === 'modern') listModern.appendChild(el);
+                if(d.group === 'classic') listClassic.appendChild(el);
+                if(d.group === 'ipad') listiPad.appendChild(el);
+            });
+            
+            // Remove last borders
+            [listModern, listClassic, listiPad].forEach(list => {
+                if(list.lastElementChild) list.lastElementChild.classList.remove('border-b');
+            });
+        }
+
+        function selectDevice(modelId) {
+            currentModelId = modelId;
+            const specs = devices.find(d => d.id === modelId);
+            if(!specs) return;
+
+            // Apply specs
+            frame.style.setProperty('--device-width', specs.width + 'px');
+            frame.style.setProperty('--device-height', specs.height + 'px');
+            frame.style.setProperty('--device-radius', specs.radius + 'px');
+            
+            frame.style.setProperty('--notch-width', specs.notchW + 'px');
+            frame.style.setProperty('--notch-height', specs.notchH + 'px');
+            frame.style.setProperty('--notch-radius', specs.notchR + 'px');
+            frame.style.setProperty('--notch-full-radius', specs.notchFullR + 'px');
+            frame.style.setProperty('--notch-top', specs.notchTop + 'px');
+
+            // Bezel logic
+            const screen = document.querySelector('.screen');
+            if (specs.hasBezel) {
+                frame.classList.add('has-bezel');
+                frame.classList.add('no-notch');
+                homeBar.style.display = 'none';
+                document.querySelector('.status-bar').style.top = '5px';
+                document.querySelector('.status-bar').style.color = 'black';
+                document.getElementById('home-screen').style.paddingTop = '20px';
+                
+                // iPhone 4 Grid Fix
+                if(modelId === 'iphone4') {
+                     document.querySelector('.app-grid').classList.remove('grid-cols-4');
+                     document.querySelector('.app-grid').classList.add('grid-cols-3');
+                } else {
+                     document.querySelector('.app-grid').classList.add('grid-cols-4');
+                     document.querySelector('.app-grid').classList.remove('grid-cols-3');
+                }
+            } else {
+                frame.classList.remove('has-bezel');
+                if(specs.notchW === 0) frame.classList.add('no-notch');
+                else frame.classList.remove('no-notch');
+                
+                homeBar.style.display = 'block';
+                document.querySelector('.status-bar').style.top = '10px';
+                document.querySelector('.status-bar').style.color = 'white';
+                document.getElementById('home-screen').style.paddingTop = '64px';
+                document.querySelector('.app-grid').classList.add('grid-cols-4');
+                document.querySelector('.app-grid').classList.remove('grid-cols-3');
+            }
+
+            // iPad Logic
+            if(specs.group === 'ipad') {
+                 document.querySelectorAll('.ipad-only').forEach(el => el.classList.remove('hidden'));
+                 document.querySelector('.dock-container').classList.add('w-3/4', 'mx-auto');
+                 document.querySelector('.app-grid').classList.add('px-10');
+                 document.querySelector('.app-grid').classList.remove('grid-cols-4');
+                 document.querySelector('.app-grid').classList.add('grid-cols-6');
+            } else {
+                 document.querySelectorAll('.ipad-only').forEach(el => el.classList.add('hidden'));
+                 document.querySelector('.dock-container').classList.remove('w-3/4', 'mx-auto');
+                 document.querySelector('.app-grid').classList.remove('px-10');
+                 if(!specs.hasBezel) {
+                    document.querySelector('.app-grid').classList.add('grid-cols-4');
+                    document.querySelector('.app-grid').classList.remove('grid-cols-6');
+                 }
+            }
+
+            // Re-calc scale immediately
+            setTimeout(autoScale, 50);
+        }
+
+        // --- 3. RESPONSIVE AUTO-SCALING (Aggressive) ---
+        function autoScale() {
+            // Goal: Fit device within the window with some padding
+            const padding = 25; 
+            const windowW = window.innerWidth - padding;
+            const windowH = window.innerHeight - padding;
+            
+            const deviceW = parseInt(frame.style.getPropertyValue('--device-width')) || 393;
+            const deviceH = parseInt(frame.style.getPropertyValue('--device-height')) || 852;
+            
+            const scaleX = windowW / deviceW;
+            const scaleY = windowH / deviceH;
+            
+            // ใช้ค่าที่น้อยกว่าเพื่อให้เห็นครบทั้งความกว้างและความสูง
+            let scale = Math.min(scaleX, scaleY);
+
+            // Cap scale at 1.1 only if on desktop to avoid pixelation, 
+            // but for "fit screen" request, we prioritize fitting.
+            // Let's allow slightly larger than 100% but not absurdly huge.
+            if (scale > 1.2) scale = 1.2;
+
+            wrapper.style.transform = `scale(${scale})`;
+        }
+
+        window.addEventListener('resize', autoScale);
+        window.addEventListener('orientationchange', () => setTimeout(autoScale, 200));
+
+        // --- 4. APP NAVIGATION ---
+        function updateClock() {
+            const now = new Date();
+            let hours = now.getHours();
+            let minutes = now.getMinutes();
+            hours = hours < 10 ? '0' + hours : hours;
+            minutes = minutes < 10 ? '0' + minutes : minutes;
+            document.getElementById('clock').textContent = hours + ':' + minutes;
+        }
+        setInterval(updateClock, 1000);
+        updateClock();
+
+        window.onload = function() {
+            initModelApp();
+            selectDevice('iphone14pro'); // Init default
+            const bootScreen = document.getElementById('boot-screen');
+            setTimeout(() => {
+                bootScreen.classList.add('fade-out');
+                setTimeout(() => { bootScreen.style.display = 'none'; }, 500);
+            }, 1000);
+        };
+
+        const activeAppContainer = document.getElementById('active-app-container');
+        let isAppOpen = false;
+
+        function openApp(appName) {
+            isAppOpen = true;
+            document.querySelectorAll('#active-app-container > div').forEach(div => div.classList.add('hidden'));
+            document.querySelectorAll('#active-app-container > div').forEach(div => div.classList.remove('flex'));
+
+            let targetAppId = 'app-generic';
+            const appMap = {
+                'settings': 'app-settings',
+                'photos': 'app-photos',
+                'calculator': 'app-calculator',
+                'messages': 'app-messages',
+                'camera': 'app-camera',
+                'weather': 'app-weather',
+                'notes': 'app-notes',
+                'models': 'app-models' // New App
+            };
+            if (appMap[appName]) targetAppId = appMap[appName];
+
+            const appContent = document.getElementById(targetAppId);
+            appContent.classList.remove('hidden');
+            appContent.classList.add('flex');
+
+            activeAppContainer.classList.remove('hidden', 'app-close');
+            activeAppContainer.classList.add('flex', 'app-launch');
+            
+            // Adjust Home Bar color
+            if(['calculator', 'weather', 'camera'].includes(appName)) {
+                homeBar.classList.remove('bg-black');
+                homeBar.classList.add('bg-white');
+            } else {
+                homeBar.classList.remove('bg-white');
+                homeBar.classList.add('bg-black');
+            }
+        }
+
+        function goHome() {
+            if (!isAppOpen) return;
+            activeAppContainer.classList.remove('app-launch');
+            activeAppContainer.classList.add('app-close');
+
+            setTimeout(() => {
+                activeAppContainer.classList.add('hidden');
+                activeAppContainer.classList.remove('flex');
+                isAppOpen = false;
+                homeBar.classList.remove('bg-black');
+                homeBar.classList.add('bg-white');
+            }, 500); // Wait for animation
+        }
+
+        homeBar.addEventListener('click', goHome);
+    </script>
+</body>
 </html>
